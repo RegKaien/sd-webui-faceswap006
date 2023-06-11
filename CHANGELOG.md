@@ -1,3 +1,6 @@
+0.0.6 :
++ improve model loading (should improve performance after fist image).
++ investigate implementation of invisible wattermark (not convinced/reliable enough yet - commented).
 
 0.0.5 :
 
