@@ -12,6 +12,8 @@ from modules.upscaler import Upscaler, UpscalerData
 from modules.face_restoration import restore_faces
 from modules import scripts, shared, images,  scripts_postprocessing
 from modules.face_restoration import FaceRestoration
+import copy
+
 
 @dataclass
 class UpscaleOptions :
@@ -20,6 +22,25 @@ class UpscaleOptions :
     upscale_visibility : float = 0.5
     face_restorer : FaceRestoration  = None
     restorer_visibility : float = 0.5
+
+# TODO: find a better way to implement invisible wattermark as warning
+# from imwatermark import WatermarkEncoder,WatermarkDecoder
+# def add_wm(source_img : Image) -> Image :
+#     source_img = cv2.cvtColor(np.array(source_img), cv2.COLOR_RGB2BGR)
+#     wm = 'DeepFake'
+#     encoder = WatermarkEncoder()
+#     encoder.set_watermark('bytes', wm.encode('utf-8'))
+#     bgr_encoded = encoder.encode(source_img, 'dwtDct')
+#     return Image.fromarray(cv2.cvtColor(bgr_encoded, cv2.COLOR_BGR2RGB))
+
+# def read_wm(source_img : Image) :
+#     try :
+#         source_img = cv2.cvtColor(np.array(source_img), cv2.COLOR_RGB2BGR)
+#         decoder = WatermarkDecoder('bytes', 64)
+#         watermark = decoder.decode(source_img, 'dwtDct')
+#         return watermark.decode('utf-8')
+#     except :
+#         return ""
 
 def upscale_image(image: Image, upscale_options: UpscaleOptions):
     result_image = image
@@ -46,9 +67,30 @@ providers = onnxruntime.get_available_providers()
 if "TensorrtExecutionProvider" in providers:
     providers.remove("TensorrtExecutionProvider")
 
+ANALYSIS_MODEL = None
+
+def getAnalysisModel() :
+    global ANALYSIS_MODEL
+    if ANALYSIS_MODEL is None :
+        ANALYSIS_MODEL = insightface.app.FaceAnalysis(name="buffalo_l", providers=providers)
+    return ANALYSIS_MODEL
+
+FS_MODEL = None
+CURRENT_FS_MODEL_PATH = None
+def getFaceSwapModel(model_path : str) :
+    global FS_MODEL
+    global CURRENT_FS_MODEL_PATH
+    if CURRENT_FS_MODEL_PATH is None or CURRENT_FS_MODEL_PATH != model_path:
+        CURRENT_FS_MODEL_PATH = model_path
+        FS_MODEL= insightface.model_zoo.get_model(
+            model_path, providers=providers
+        )
+
+    return FS_MODEL
+
 
 def get_face_single(img_data, face_index=0, det_size=(640, 640)):
-    face_analyser = insightface.app.FaceAnalysis(name="buffalo_l", providers=providers)
+    face_analyser = copy.deepcopy(getAnalysisModel())
     face_analyser.prepare(ctx_id=0, det_size=det_size)
     face = face_analyser.get(img_data)
     
@@ -73,9 +115,8 @@ def swap_face(
     if source_face is not None:
         result = target_img
         model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), model)
-        face_swapper = insightface.model_zoo.get_model(
-            model_path, providers=providers
-        )
+        face_swapper = getFaceSwapModel(model_path)
+
         for face_num in faces_index:
             target_face = get_face_single(target_img, face_index=face_num)
             if target_face is not None:
