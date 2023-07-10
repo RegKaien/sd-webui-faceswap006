@@ -46,7 +46,7 @@ class FaceSwapScript(scripts.Script):
                                     value=shared.face_restorers[0].name(), type="value")
                     face_restorer_visibility = gr.Slider(0,1,1, step=0.1, label="Restore visibility")
                 upscaler_name = gr.inputs.Dropdown(choices=[upscaler.name for upscaler in shared.sd_upscalers], label="Upscaler")
-                upscaler_scale = gr.Slider(1,8,1, step=0.1, label="Upscaler scale")
+                upscaler_scale = gr.Slider(1,8, value=1.5, step=0.1, label="Upscaler scale")
                 upscaler_visibility = gr.Slider(0,1,1, step=0.1, label="Upscaler visibility (if scale = 1)")
                 
                 models = get_models()
